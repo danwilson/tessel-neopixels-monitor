@@ -1,0 +1,11 @@
+{
+  "name": "TesselMonitor",
+  "version": "0.1.0",
+  "description": "Tessel project with neopixels reacting to ambient sound module",
+  "main": "monitor.js",
+  "author": "Dan Wilson",
+  "license": "MIT",
+  "dependencies": {
+    "ambient-attx4": "^0.2.4"
+  }
+}
