@@ -11,7 +11,7 @@ var SOUND_TRIGGER = 0.1;
 var vals = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff];
 var NUM_FRAMES = 60;
 var NEO_LENGTH = 60;
-var END_FADE_IN = 10;
+var END_FADE_IN = 1;
 var END_ANIMATION = 90;
 var END_FADE_OUT = 100;
 var animCount = 0;
@@ -43,7 +43,7 @@ ambient.on('ready', function () {
     });
 
     console.log('starting neopixel animation');
-    neo.animate(NUM_FRAMES, Buffer.concat(fadeIn(NEO_LENGTH, NUM_FRAMES)));
+    neo.animate(NUM_FRAMES, Buffer.concat(fadeIn(NEO_LENGTH, NUM_FRAMES*10)));
   });
 });
 
@@ -52,16 +52,15 @@ ambient.on('error', function (err) {
 });
 
 function pulse(numLEDs, numFrames) {
-  var trail = 5;
   var arr = [];
   for (var j = 0; j < numFrames; j++) {
     var buf = new Buffer(numLEDs * 3);
     buf.fill(0);
     var k = j / 20;
     for (var i = 0; i < numLEDs; i++) {
-      buf[i * 3] = 0x11;//vals[(i+k) % vals.length];
-      buf[i * 3 + 1] = 0x22;
-      buf[i * 3 + 2] = 0x55;
+      buf[i * 3] = 0x00;//vals[(i+k) % vals.length];
+      buf[i * 3 + 1] = 0x11;
+      buf[i * 3 + 2] = 0x33;
     }
     arr.push(buf);
   }
@@ -88,11 +87,11 @@ function fadeIn(numLEDs, numFrames) {
   for (var j = 0; j < numFrames; j++) {
     var buf = new Buffer(numLEDs * 3);
     buf.fill(0);
-    var k = j / 20;
+    var fadeValue = 0;//Math.floor(j / (numFrames / 32));
     for (var i = 0; i < numLEDs; i++) {
       buf[i * 3] = 0x00;
-      buf[i * 3 + 1] = 0x11;
-      buf[i * 3 + 2] = 0x33;
+      buf[i * 3 + 1] = 0x00;
+      buf[i * 3 + 2] = 0x11 + parseInt(fadeValue, 16);
     }
     arr.push(buf);
   }
