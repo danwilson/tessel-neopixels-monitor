@@ -1,11 +1,8 @@
 
 var tessel = require('tessel');
-var ambientlib = require('ambient-attx4');
 var Npx = require('npx');
-
-var ambient = ambientlib.use(tessel.port['A']);
-
-var SOUND_LEVEL = 0.1;
+var wifi = require('wifi-cc3000'),
+    http = require('http');
 
 var NEO_LENGTH = 60;
 
@@ -20,51 +17,103 @@ var c = { //needs to be grb instead of rgb?
 
 var npx = new Npx(NEO_LENGTH);
 
-var anims = [];
 var DELAY = 120; //60;
-keepRunning = true;
-colorWave();
+var MAX_ITERATIONS = 20;
 
-// ambient.on('ready', function () {
-//   console.log('Ready to listen for sound events');
-//   // The trigger is a float between 0 and 1
-//   ambient.setSoundTrigger(SOUND_LEVEL);
+var anims = [];
+var keepRunning = false;
+var isPlaying = false;
+var iterations = 0;
 
-//   ambient.on('sound-trigger', function(data) {
-//     console.log('Something happened with sound: ', data);
+colorWave(true);
 
-//     ambient.clearSoundTrigger();
 
-//     //start wave animation
-//     colorWave();
-//   });
-// });
+function setupServer() {
+  console.log('inside setupServer');
+  http.createServer(function(req, res) {
+    var command = req.url.substring(1);
+    if (req.method === 'GET' && command === 'play') {
+      console.log('play request');
+      if (isPlaying) {
+        res.writeHead(200, {'Content-Type': 'text/plain'});
+        res.end('success, alreadyPlaying, keepRunning: ' + keepRunning);
+        return;
+      } else {
+        keepRunning = true;
+        if (anims.length) {
+          run();
+        } else {
+          colorWave();
+        }
+      }
 
-// ambient.on('error', function (err) {
-//   console.log(err);
-// });
+      res.writeHead(200, {'Content-Type': 'text/plain'});
+      res.end('success, keepRunning: ' + keepRunning);
+    } else if (req.method === 'GET' && (command === 'pause' || command === 'stop')) {
+      console.log('stop request');
+      keepRunning = false;
 
-function colorWave() {
+      res.writeHead(200, {'Content-Type': 'text/plain'});
+      res.end('success, '/* + (isPlaying ? 'stillPlaying' : 'stopped')*/ + ' keepRunning: ' + keepRunning);
+    } else {
+      res.writeHead(200, {'Content-Type': 'text/html'});
+      res.end('<html><head><title>The Entertainer</title><meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        +'<style>body,input{margin:0;padding:0;}input {margin-top:1em;width:100%;height:50px;-webkit-appearance:none;-moz-appearance:none;border-radius:0;border:0;font-size:1.5em;color:#f5f6f9;}'
+        +'[value="Play"] {background:#289830;}[value="Stop"] {background:#983028;}</style></head><body><input type="button" value="Play"><input type="button" value="Stop">'
+        +'<script>var play=document.querySelector("[value=Play]");var stop = document.querySelector("[value=Stop]");'
+        +'play.addEventListener("click", function(e) { window.open("/play") });'
+        +'stop.addEventListener("click", function(e) { window.open("/stop") });'
+        +'</script></body>');
+    }
+  }).listen(8056);
+  console.log('exiting setupServer');
+}
+
+setTimeout(function() {
+  if (wifi.isConnected()) {
+    console.log('wifi connected');
+    setupServer();
+  } else {
+    console.log('wifi set connect event listener');
+    wifi.connect({
+      security: 'wpa2',
+      ssid: '',
+      password: '',
+      timeout: 30 // in seconds
+    });
+    wifi.on('connect', setupServer);
+  }
+}, 1000);
+
+function colorWave(delay) {
   for (var c = 0, len = NEO_LENGTH; c < len; c++) {
     var anim1 = npx.newAnimation(1);
     console.log(c, '/', len);
     anim1.setPattern(initialPattern(c, NEO_LENGTH));
     anims.push(anim1);
-  }
-  run();
-}
 
-function run() {
-  for (var c = 0, len = anims.length; c < len; c++) {
     npx.enqueue(anims[c], DELAY);
   }
-  npx.run().then(function() {
-    if (keepRunning) {
-      run();
-    } else {
-      npx.enqueue(npx.newAnimation(1).setAll('#000000')).run();
-    }
-  });
+  run(delay);
+}
+
+function run(delay) {
+  if (delay !== true) {
+    iterations++;
+    isPlaying = true;
+    npx.run().then(function() {
+      console.log(keepRunning);
+      if (keepRunning && iterations < MAX_ITERATIONS) {
+        run();
+      } else {
+        isPlaying = false;
+        iterations = 0;
+        npx.enqueue(npx.newAnimation(1).setAll('#000000')).run().then(function() {
+          npx.queue.pop(); //remove the "OFF" animation for future plays
+        });
+      }
+    });
+  }
 }
 
 function initialPattern(start, length) {

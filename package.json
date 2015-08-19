@@ -6,6 +6,8 @@
   "author": "Dan Wilson",
   "license": "MIT",
   "dependencies": {
-    "ambient-attx4": "^0.2.4"
+    "ambient-attx4": "^0.2.4",
+    "wifi-cc3000": "0.0.1",
+    "npx": "^0.1.5"
   }
 }
